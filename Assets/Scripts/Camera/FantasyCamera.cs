@@ -2,26 +2,40 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// Cámara tercera persona para WonderAces.
-/// Sigue al ángel guerrero con orientación libre.
+/// Cámara estilo Star Fox SNES para mundo abierto.
+/// Siempre ve el horizonte (no rota con el pitch/roll del personaje).
+/// Sigue detrás del personaje según su dirección de yaw.
+/// El personaje se inclina visualmente pero la cámara se mantiene nivelada.
 /// Transparenta objetos que bloquean la vista.
 /// </summary>
 public class FantasyCamera : MonoBehaviour
 {
     [Header("Posición")]
-    public float followDistance = 7f;
-    public float heightOffset = 2.5f;
-    public float positionSmooth = 10f;
+    [Tooltip("Distancia detrás del personaje")]
+    public float followDistance = 10f;
+    [Tooltip("Altura sobre el personaje")]
+    public float heightOffset = 4f;
+    [Tooltip("Suavizado de posición horizontal")]
+    public float positionSmooth = 6f;
+    [Tooltip("Suavizado de altura (más lento para efecto cinematográfico)")]
+    public float heightSmooth = 4f;
 
-    [Header("Rotación")]
-    public float rotationSmooth = 8f;
-    public float lookAheadDistance = 5f;
+    [Header("Mirada")]
+    [Tooltip("Punto de mira adelante del personaje")]
+    public float lookAheadDistance = 8f;
+    [Tooltip("Altura del punto de mira respecto al personaje")]
+    public float lookAheadHeight = 1f;
+    [Tooltip("Suavizado de rotación")]
+    public float rotationSmooth = 5f;
 
-    [Header("Transparencia")]
+    [Header("Transparencia de Obstáculos")]
     public float obstacleAlpha = 0.2f;
     public float fadeSpeed = 8f;
 
+    // Referencia al personaje
     private Transform target;
+
+    // Transparencia
     private Dictionary<Renderer, Color> fadedObjects = new Dictionary<Renderer, Color>();
     private HashSet<Renderer> currentBlockers = new HashSet<Renderer>();
     private List<Renderer> toRemove = new List<Renderer>();
@@ -38,14 +52,40 @@ public class FantasyCamera : MonoBehaviour
     {
         if (target == null) return;
 
-        Vector3 up = target.up;
-        Vector3 desiredPos = target.position - target.forward * followDistance + up * heightOffset;
-        transform.position = Vector3.Lerp(transform.position, desiredPos, positionSmooth * Time.deltaTime);
+        // --- POSICIÓN: detrás del personaje según su YAW (no pitch/roll) ---
+        // Extraer solo la rotación horizontal del personaje (ignorar pitch y roll)
+        float yaw = target.eulerAngles.y;
+        Quaternion flatRotation = Quaternion.Euler(0f, yaw, 0f);
 
-        Vector3 lookTarget = target.position + target.forward * lookAheadDistance;
-        Quaternion desiredRot = Quaternion.LookRotation(lookTarget - transform.position, up);
-        transform.rotation = Quaternion.Slerp(transform.rotation, desiredRot, rotationSmooth * Time.deltaTime);
+        // Posición deseada: detrás del personaje en su dirección horizontal
+        Vector3 behindOffset = flatRotation * Vector3.back * followDistance;
+        Vector3 desiredPosition = target.position + behindOffset;
+        desiredPosition.y = target.position.y + heightOffset;
 
+        // Suavizar XZ separado de Y para efecto Star Fox
+        Vector3 currentPos = transform.position;
+        float smoothX = Mathf.Lerp(currentPos.x, desiredPosition.x, positionSmooth * Time.deltaTime);
+        float smoothZ = Mathf.Lerp(currentPos.z, desiredPosition.z, positionSmooth * Time.deltaTime);
+        float smoothY = Mathf.Lerp(currentPos.y, desiredPosition.y, heightSmooth * Time.deltaTime);
+
+        transform.position = new Vector3(smoothX, smoothY, smoothZ);
+
+        // --- ROTACIÓN: siempre mirando al horizonte (up = Vector3.up) ---
+        // Punto de mira: adelante del personaje en su dirección horizontal
+        Vector3 lookTarget = target.position + flatRotation * Vector3.forward * lookAheadDistance;
+        lookTarget.y = target.position.y + lookAheadHeight;
+
+        // Rotación suave mirando al punto de mira, SIEMPRE con up = mundo arriba
+        Vector3 lookDir = lookTarget - transform.position;
+        if (lookDir.sqrMagnitude > 0.01f)
+        {
+            Quaternion desiredRotation = Quaternion.LookRotation(lookDir, Vector3.up);
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation, desiredRotation,
+                rotationSmooth * Time.deltaTime);
+        }
+
+        // --- TRANSPARENCIA ---
         raycastTimer += Time.deltaTime;
         if (raycastTimer >= 0.1f)
         {
@@ -55,6 +95,9 @@ public class FantasyCamera : MonoBehaviour
         UpdateFades();
     }
 
+    /// <summary>
+    /// Detecta objetos entre cámara y personaje.
+    /// </summary>
     private void DetectBlockers()
     {
         currentBlockers.Clear();
