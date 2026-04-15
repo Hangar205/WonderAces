@@ -37,6 +37,7 @@ public class SceneBootstrap : MonoBehaviour
         CreateSkybox();
         CreateLighting();
         CreateSkyDome();
+        Terrain terrain = CreateMedievalWorld();
         GameObject player = CreatePlayer();
         CreateCamera(player);
         CreatePortals();
@@ -45,7 +46,35 @@ public class SceneBootstrap : MonoBehaviour
         CreateGameManager();
         CreateHUD();
 
-        Debug.Log("WonderAces: Nivel de fantasía generado.");
+        Debug.Log("WonderAces: Nivel de fantasía medieval generado.");
+    }
+
+    /// <summary>
+    /// Genera el mundo medieval completo: terreno, vegetación, ríos y aldeas.
+    /// </summary>
+    private Terrain CreateMedievalWorld()
+    {
+        // 1. Terreno con montañas y valles
+        GameObject terrainObj = new GameObject("TerrainGenerator");
+        TerrainGenerator tg = terrainObj.AddComponent<TerrainGenerator>();
+        Terrain terrain = tg.GenerateTerrain();
+
+        // 2. Ríos y lagos
+        GameObject riverObj = new GameObject("RiverGenerator");
+        RiverGenerator rg = riverObj.AddComponent<RiverGenerator>();
+        rg.terrain = terrain;
+
+        // 3. Vegetación (árboles y arbustos)
+        GameObject vegObj = new GameObject("VegetationGenerator");
+        VegetationGenerator vg = vegObj.AddComponent<VegetationGenerator>();
+        vg.terrain = terrain;
+
+        // 4. Aldeas medievales
+        GameObject villageObj = new GameObject("VillageGenerator");
+        VillageGenerator vilg = villageObj.AddComponent<VillageGenerator>();
+        vilg.terrain = terrain;
+
+        return terrain;
     }
 
     private void CreateSkybox()
@@ -141,8 +170,9 @@ public class SceneBootstrap : MonoBehaviour
     private GameObject CreatePlayer()
     {
         GameObject player = new GameObject("AngelWarrior");
-        player.transform.position = new Vector3(0f, 0f, -arenaRadius * 0.3f);
-        player.transform.LookAt(Vector3.zero);
+        // Posicionar sobre el terreno, en el centro, mirando hacia adelante
+        player.transform.position = new Vector3(250f, 60f, 250f);
+        player.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
 
         Rigidbody rb = player.AddComponent<Rigidbody>();
         rb.mass = 1f;
