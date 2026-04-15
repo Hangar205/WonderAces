@@ -43,6 +43,10 @@ public class PlayerController : MonoBehaviour
     public float maxAltitude = 100f;
     [Tooltip("Altura mínima sobre el terreno")]
     public float minAltitude = 5f;
+    [Tooltip("Distancia al límite donde empieza a enderezarse")]
+    public float levelOutDistance = 15f;
+    [Tooltip("Velocidad de auto-enderezamiento")]
+    public float levelOutSpeed = 3f;
 
     [Header("Colisión")]
     public float bounceForce = 8f;
@@ -251,7 +255,36 @@ public class PlayerController : MonoBehaviour
         pos.x = Mathf.Clamp(pos.x, terrainMargin, terrainSize - terrainMargin);
         pos.z = Mathf.Clamp(pos.z, terrainMargin, terrainSize - terrainMargin);
 
-        // Altura máxima
+        // Obtener altura del terreno
+        float terrainHeight = 0f;
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain != null)
+            terrainHeight = terrain.SampleHeight(pos) + terrain.transform.position.y;
+
+        float heightAboveGround = pos.y - terrainHeight;
+        float distToceiling = maxAltitude - pos.y;
+
+        // --- AUTO-ENDEREZAMIENTO cerca de los límites ---
+        float currentPitch = transform.eulerAngles.x;
+        if (currentPitch > 180f) currentPitch -= 360f;
+
+        // Cerca del suelo y apuntando hacia abajo → enderezar (pitch hacia 0)
+        if (heightAboveGround < levelOutDistance && currentPitch > 5f)
+        {
+            float urgency = 1f - (heightAboveGround / levelOutDistance);
+            float correction = -currentPitch * levelOutSpeed * urgency * Time.fixedDeltaTime;
+            transform.Rotate(correction, 0f, 0f, Space.Self);
+        }
+
+        // Cerca del techo y apuntando hacia arriba → enderezar (pitch hacia 0)
+        if (distToceiling < levelOutDistance && currentPitch < -5f)
+        {
+            float urgency = 1f - (distToceiling / levelOutDistance);
+            float correction = -currentPitch * levelOutSpeed * urgency * Time.fixedDeltaTime;
+            transform.Rotate(correction, 0f, 0f, Space.Self);
+        }
+
+        // --- CLAMP DURO de posición ---
         if (pos.y > maxAltitude)
         {
             pos.y = maxAltitude;
@@ -261,18 +294,12 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        // Altura mínima sobre terreno
-        Terrain terrain = Terrain.activeTerrain;
-        if (terrain != null)
+        if (pos.y < terrainHeight + minAltitude)
         {
-            float terrainHeight = terrain.SampleHeight(pos) + terrain.transform.position.y;
-            if (pos.y < terrainHeight + minAltitude)
+            pos.y = terrainHeight + minAltitude;
+            if (rb.linearVelocity.y < 0)
             {
-                pos.y = terrainHeight + minAltitude;
-                if (rb.linearVelocity.y < 0)
-                {
-                    Vector3 vel = rb.linearVelocity; vel.y = 0; rb.linearVelocity = vel;
-                }
+                Vector3 vel = rb.linearVelocity; vel.y = 0; rb.linearVelocity = vel;
             }
         }
 
