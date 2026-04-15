@@ -213,34 +213,50 @@ public class PlayerController : MonoBehaviour
 
     /// <summary>
     /// Rotación Star Fox: roll para girar, pitch para subir/bajar.
-    /// Auto-nivelación de roll. Yaw automático por roll.
+    /// Auto-nivelación agresiva de roll y pitch cuando no hay input.
+    /// El personaje NUNCA vuela de cabeza.
     /// </summary>
     private void ApplyRotation()
     {
-        // PITCH
-        float pitch = -inputPitch * pitchSpeed * Time.fixedDeltaTime;
-
-        // ROLL
-        float roll = inputRoll * rollSpeed * Time.fixedDeltaTime;
-
-        // Auto-nivelación cuando no hay input de roll
-        if (Mathf.Abs(inputRoll) < 0.1f)
-        {
-            float currentRoll = transform.eulerAngles.z;
-            if (currentRoll > 180f) currentRoll -= 360f;
-            roll = -currentRoll * 3f * Time.fixedDeltaTime;
-        }
-
-        // Yaw automático por roll
-        float rollAngle = transform.eulerAngles.z;
-        if (rollAngle > 180f) rollAngle -= 360f;
-        float autoYaw = -rollAngle / 90f * yawFromRoll * Time.fixedDeltaTime;
-
-        // Limitar pitch para no hacer loops
         float currentPitch = transform.eulerAngles.x;
         if (currentPitch > 180f) currentPitch -= 360f;
+        float currentRoll = transform.eulerAngles.z;
+        if (currentRoll > 180f) currentRoll -= 360f;
+
+        // PITCH: input del jugador
+        float pitch = -inputPitch * pitchSpeed * Time.fixedDeltaTime;
+
+        // Limitar pitch a ±30°
         if ((currentPitch < -30f && pitch < 0f) || (currentPitch > 30f && pitch > 0f))
-            pitch = 0f; // No seguir inclinando si ya está muy inclinado
+            pitch = 0f;
+
+        // Auto-nivelación del PITCH cuando no hay input (vuelve a horizontal)
+        if (Mathf.Abs(inputPitch) < 0.1f && Mathf.Abs(currentPitch) > 2f)
+        {
+            pitch = -currentPitch * 4f * Time.fixedDeltaTime;
+        }
+
+        // ROLL: input del jugador
+        float roll = inputRoll * rollSpeed * Time.fixedDeltaTime;
+
+        // Auto-nivelación del ROLL agresiva (siempre vuelve a nivelado)
+        if (Mathf.Abs(inputRoll) < 0.1f)
+        {
+            roll = -currentRoll * 5f * Time.fixedDeltaTime;
+        }
+
+        // Limitar roll máximo a ±50° (nunca de cabeza)
+        if ((currentRoll < -50f && roll < 0f) || (currentRoll > 50f && roll > 0f))
+            roll = 0f;
+
+        // Corrección de emergencia: si por alguna razón está casi de cabeza, forzar nivelación
+        if (Mathf.Abs(currentRoll) > 60f)
+        {
+            roll = -currentRoll * 8f * Time.fixedDeltaTime;
+        }
+
+        // Yaw automático por roll (giro coordinado)
+        float autoYaw = -currentRoll / 90f * yawFromRoll * Time.fixedDeltaTime;
 
         transform.Rotate(pitch, autoYaw, -roll, Space.Self);
     }
