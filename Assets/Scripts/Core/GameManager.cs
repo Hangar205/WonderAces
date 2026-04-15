@@ -35,7 +35,7 @@ public class GameManager : MonoBehaviour
         int points = pointsPerPortal;
         if (player != null)
         {
-            float speedRatio = player.currentSpeed / player.maxSpeed;
+            float speedRatio = player.currentSpeed / player.maxFlightSpeed;
             points += Mathf.RoundToInt(speedRatio * speedBonusMultiplier);
         }
         score += points;

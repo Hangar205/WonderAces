@@ -47,7 +47,7 @@ public class FantasyAudio : MonoBehaviour
     {
         if (player != null && windSource != null)
         {
-            float ratio = player.currentSpeed / player.maxSpeed;
+            float ratio = player.currentSpeed / player.maxFlightSpeed;
             windSource.pitch = Mathf.Lerp(0.9f, 1.2f, ratio);
             windSource.volume = Mathf.Lerp(windVolume * 0.3f, windVolume, ratio);
         }

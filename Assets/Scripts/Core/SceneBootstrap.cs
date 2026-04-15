@@ -7,15 +7,9 @@ using UnityEngine;
 /// </summary>
 public class SceneBootstrap : MonoBehaviour
 {
-    [Header("Arena")]
-    [Tooltip("Radio de la arena esférica")]
-    public float arenaRadius = 120f;
-
     [Header("Portales")]
     public int portalCount = 12;
 
-    [Header("Ruinas Flotantes")]
-    public int ruinCount = 10;
 
     private Shader _cachedShader;
     private Shader CachedShader
@@ -143,28 +137,6 @@ public class SceneBootstrap : MonoBehaviour
         fill.transform.rotation = Quaternion.Euler(-20f, 160f, 0f);
     }
 
-    /// <summary>
-    /// Crea una esfera invertida como límite visual del cielo.
-    /// </summary>
-    private void CreateSkyDome()
-    {
-        // Nubes decorativas en el borde de la arena
-        for (int i = 0; i < 15; i++)
-        {
-            Vector3 pos = Random.onUnitSphere * (arenaRadius * 0.9f);
-            GameObject cloud = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            cloud.name = $"Cloud_{i}";
-            cloud.transform.position = pos;
-            cloud.transform.localScale = new Vector3(
-                Random.Range(8f, 20f), Random.Range(3f, 6f), Random.Range(8f, 15f));
-
-            Material mat = new Material(CachedShader);
-            mat.color = new Color(0.9f, 0.85f, 1f, 0.3f);
-            cloud.GetComponent<Renderer>().material = mat;
-            Destroy(cloud.GetComponent<Collider>());
-        }
-    }
-
     private GameObject CreatePlayer()
     {
         GameObject player = new GameObject("AngelWarrior");
@@ -221,112 +193,6 @@ public class SceneBootstrap : MonoBehaviour
         GameObject obj = new GameObject("PortalManager");
         PortalManager pm = obj.AddComponent<PortalManager>();
         pm.portalCount = portalCount;
-        pm.arenaRadius = arenaRadius;
-    }
-
-    /// <summary>
-    /// Crea ruinas flotantes como referencia visual y obstáculos.
-    /// Plataformas de piedra, columnas rotas, arcos antiguos.
-    /// </summary>
-    private void CreateFloatingRuins()
-    {
-        Random.InitState(777);
-        float maxDist = arenaRadius * 0.7f;
-
-        for (int i = 0; i < ruinCount; i++)
-        {
-            Vector3 pos = Random.onUnitSphere * Random.Range(15f, maxDist);
-            int type = Random.Range(0, 3);
-
-            switch (type)
-            {
-                case 0: CreateStonePlatform(pos, i); break;
-                case 1: CreateBrokenColumn(pos, i); break;
-                case 2: CreateFloatingArch(pos, i); break;
-            }
-        }
-    }
-
-    private void CreateStonePlatform(Vector3 pos, int idx)
-    {
-        GameObject plat = new GameObject($"Ruin_Platform_{idx}");
-        plat.transform.position = pos;
-        plat.transform.rotation = Random.rotation;
-
-        Color stone = new Color(0.45f, 0.4f, 0.35f);
-        float w = Random.Range(3f, 6f);
-
-        GameObject top = MkSolid("Top", PrimitiveType.Cube, stone);
-        top.transform.SetParent(plat.transform);
-        top.transform.localScale = new Vector3(w, 0.3f, w * 0.7f);
-
-        GameObject moss = MkPrim("Moss", PrimitiveType.Cube, new Color(0.2f, 0.4f, 0.15f));
-        moss.transform.SetParent(plat.transform);
-        moss.transform.localPosition = new Vector3(0f, 0.17f, 0f);
-        moss.transform.localScale = new Vector3(w * 0.6f, 0.02f, w * 0.4f);
-    }
-
-    private void CreateBrokenColumn(Vector3 pos, int idx)
-    {
-        GameObject col = new GameObject($"Ruin_Column_{idx}");
-        col.transform.position = pos;
-        col.transform.rotation = Random.rotation;
-
-        Color stone = new Color(0.5f, 0.48f, 0.42f);
-        float h = Random.Range(3f, 7f);
-
-        GameObject shaft = MkSolid("Shaft", PrimitiveType.Cylinder, stone);
-        shaft.transform.SetParent(col.transform);
-        shaft.transform.localScale = new Vector3(0.8f, h * 0.5f, 0.8f);
-
-        GameObject capital = MkSolid("Capital", PrimitiveType.Cube, stone);
-        capital.transform.SetParent(col.transform);
-        capital.transform.localPosition = new Vector3(0f, h * 0.5f, 0f);
-        capital.transform.localScale = new Vector3(1.2f, 0.2f, 1.2f);
-
-        // Runa brillante
-        GameObject rune = MkPrim("Rune", PrimitiveType.Sphere, new Color(0.5f, 0.3f, 0.8f), true);
-        rune.transform.SetParent(col.transform);
-        rune.transform.localPosition = new Vector3(0f, h * 0.25f, 0.42f);
-        rune.transform.localScale = Vector3.one * 0.12f;
-    }
-
-    private void CreateFloatingArch(Vector3 pos, int idx)
-    {
-        GameObject arch = new GameObject($"Ruin_Arch_{idx}");
-        arch.transform.position = pos;
-        arch.transform.rotation = Random.rotation;
-
-        Color stone = new Color(0.42f, 0.38f, 0.33f);
-
-        // Dos pilares
-        GameObject pillarL = MkSolid("PillarL", PrimitiveType.Cube, stone);
-        pillarL.transform.SetParent(arch.transform);
-        pillarL.transform.localPosition = new Vector3(-2f, 0f, 0f);
-        pillarL.transform.localScale = new Vector3(0.6f, 4f, 0.6f);
-
-        GameObject pillarR = MkSolid("PillarR", PrimitiveType.Cube, stone);
-        pillarR.transform.SetParent(arch.transform);
-        pillarR.transform.localPosition = new Vector3(2f, 0f, 0f);
-        pillarR.transform.localScale = new Vector3(0.6f, 4f, 0.6f);
-
-        // Arco superior
-        GameObject top = MkSolid("Top", PrimitiveType.Cube, stone);
-        top.transform.SetParent(arch.transform);
-        top.transform.localPosition = new Vector3(0f, 2.2f, 0f);
-        top.transform.localScale = new Vector3(4.8f, 0.5f, 0.6f);
-
-        // Gema mágica en el centro del arco
-        GameObject gem = MkPrim("Gem", PrimitiveType.Sphere, new Color(0.8f, 0.5f, 1f), true);
-        gem.transform.SetParent(arch.transform);
-        gem.transform.localPosition = new Vector3(0f, 2f, 0f);
-        gem.transform.localScale = Vector3.one * 0.25f;
-
-        Light gl = gem.AddComponent<Light>();
-        gl.type = LightType.Point;
-        gl.color = new Color(0.8f, 0.5f, 1f);
-        gl.intensity = 1f;
-        gl.range = 8f;
     }
 
     private void CreateAudio()
