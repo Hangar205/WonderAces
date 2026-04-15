@@ -18,11 +18,13 @@ public class MagicShooter : MonoBehaviour
 
     void Update()
     {
-        bool firePressed = Input.GetKey(KeyCode.Space)
-            || Input.GetButton("Fire1")
-            || Input.GetKey(KeyCode.JoystickButton0)
+        // B = disparar en Xbox (JoystickButton1 nuevo, JoystickButton17 legacy)
+        // F = disparar en teclado
+        // Space y A quedan para saltar
+        bool firePressed = Input.GetKey(KeyCode.F)
+            || Input.GetKey(KeyCode.Mouse0)  // Click izquierdo
             || Input.GetKey(KeyCode.JoystickButton1)
-            || Input.GetKey(KeyCode.JoystickButton16);
+            || Input.GetKey(KeyCode.JoystickButton17);
 
         if (firePressed && Time.time - lastFireTime >= fireCooldown)
         {
