@@ -64,7 +64,7 @@ public class PlayerController : MonoBehaviour
     [Header("Límites del Terreno")]
     public float terrainSize = 500f;
     public float terrainMargin = 10f;
-    public float maxAltitude = 120f;
+    public float maxAltitude = 100f;
     public float minFlightAltitude = 5f;
 
     [Header("Espada")]
