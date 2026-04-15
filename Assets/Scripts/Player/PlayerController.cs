@@ -26,38 +26,30 @@ public class PlayerController : MonoBehaviour
     public float jumpForce = 12f;
     public float groundYawSpeed = 120f;
 
-    // ==================== MODO AVIÓN ====================
-    [Header("Modo Avión — Velocidad")]
-    [Tooltip("Velocidad mínima para mantener sustentación (debajo = stall)")]
-    public float stallSpeed = 8f;
-    [Tooltip("Velocidad de crucero")]
-    public float cruiseSpeed = 20f;
-    [Tooltip("Velocidad máxima")]
+    // ==================== MODO AVIÓN (Star Fox Style) ====================
+    [Header("Modo Avión — Velocidad (Star Fox)")]
+    [Tooltip("Velocidad base — siempre avanza a esta velocidad")]
+    public float cruiseSpeed = 18f;
+    [Tooltip("Velocidad al acelerar con RT")]
+    public float boostSpeed = 35f;
+    [Tooltip("Velocidad al frenar con LT")]
+    public float brakeSpeed = 8f;
+    [Tooltip("Velocidad máxima absoluta")]
     public float maxFlightSpeed = 40f;
-    [Tooltip("Aceleración del motor")]
-    public float engineForce = 15f;
-    [Tooltip("Resistencia aerodinámica (frena naturalmente)")]
-    public float dragCoefficient = 0.5f;
-    [Tooltip("Multiplicador de boost")]
-    public float boostMultiplier = 1.8f;
+    [Tooltip("Qué tan rápido cambia entre velocidades")]
+    public float speedTransition = 5f;
+    [Tooltip("Gravedad suave durante vuelo")]
+    public float flightGravity = 5f;
 
-    [Header("Modo Avión — Sustentación")]
-    [Tooltip("Fuerza de sustentación a velocidad de crucero")]
-    public float liftForce = 22f;
-    [Tooltip("Gravedad durante vuelo")]
-    public float flightGravity = 12f;
-    [Tooltip("Gravedad extra durante stall (caída rápida)")]
-    public float stallGravity = 25f;
-
-    [Header("Modo Avión — Control")]
-    [Tooltip("Velocidad de pitch (nariz arriba/abajo)")]
-    public float pitchSpeed = 60f;
+    [Header("Modo Avión — Control (Star Fox)")]
+    [Tooltip("Velocidad de pitch (arriba = subir, abajo = bajar)")]
+    public float pitchSpeed = 70f;
     [Tooltip("Velocidad de roll (inclinación lateral)")]
-    public float rollSpeed = 80f;
-    [Tooltip("Velocidad de yaw (giro asistido por roll)")]
-    public float yawFromRoll = 30f;
-    [Tooltip("Ángulo máximo de bank visual")]
-    public float maxBankAngle = 45f;
+    public float rollSpeed = 90f;
+    [Tooltip("Fuerza de giro automático por roll")]
+    public float yawFromRoll = 40f;
+    [Tooltip("Ángulo máximo de bank")]
+    public float maxBankAngle = 50f;
 
     // ==================== GENERAL ====================
     [Header("Detección de Suelo")]
@@ -178,13 +170,13 @@ public class PlayerController : MonoBehaviour
         if (Mathf.Abs(stickX) > STICK_DEADZONE && Mathf.Abs(stickX) > Mathf.Abs(inputYaw))
             inputYaw = stickX;
 
-        // PITCH: flechas + Left Stick Y
+        // PITCH: flechas + Left Stick Y (Star Fox: arriba = subir)
         inputPitch = 0f;
-        if (Input.GetKey(KeyCode.UpArrow)) inputPitch = -1f;  // Nariz abajo
-        if (Input.GetKey(KeyCode.DownArrow)) inputPitch = 1f; // Nariz arriba
+        if (Input.GetKey(KeyCode.UpArrow)) inputPitch = 1f;   // Arriba = subir
+        if (Input.GetKey(KeyCode.DownArrow)) inputPitch = -1f; // Abajo = bajar
         float stickY = GetAxisSafe("Joy1Axis2");
         if (Mathf.Abs(stickY) > STICK_DEADZONE && Mathf.Abs(stickY) > Mathf.Abs(inputPitch))
-            inputPitch = stickY; // Stick arriba = nariz abajo (estilo avión)
+            inputPitch = -stickY; // Stick arriba = subir (Star Fox style)
 
         // ROLL: Q/E + LB/RB — en modo avión, Left Stick X también es roll
         inputRoll = 0f;
@@ -236,12 +228,13 @@ public class PlayerController : MonoBehaviour
             // Despegar: saltar y entrar en modo avión
             currentMode = FlightMode.Airplane;
             isGrounded = false;
+            targetSpeed = cruiseSpeed;
             rb.AddForce(Vector3.up * jumpForce, ForceMode.VelocityChange);
-            // Impulso inicial hacia adelante para tener sustentación
-            rb.AddForce(transform.forward * stallSpeed, ForceMode.VelocityChange);
+            // Impulso frontal automático — en Star Fox siempre avanzas
+            rb.linearVelocity = transform.forward * cruiseSpeed + Vector3.up * jumpForce * 0.5f;
         }
         else if (currentMode == FlightMode.Airplane && isGrounded
-                 && currentSpeed < landingSpeed && inputThrottle < 0.1f)
+                 && currentSpeed < landingSpeed && inputBrake > 0.3f)
         {
             // Aterrizar: velocidad baja, cerca del suelo, sin acelerador
             currentMode = FlightMode.Ground;
@@ -332,80 +325,84 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ==================== MODO AVIÓN ====================
+    // ==================== MODO AVIÓN (Star Fox Style) ====================
+
+    // Velocidad objetivo actual (se interpola suavemente)
+    private float targetSpeed;
 
     /// <summary>
-    /// Física de vuelo tipo avión:
-    /// - Motor empuja hacia adelante (transform.forward)
-    /// - Sustentación depende de la velocidad (transform.up)
-    /// - Gravedad tira hacia abajo siempre
-    /// - Drag aerodinámico frena proporcionalmente al cuadrado de la velocidad
-    /// - Stall: si velocidad < stallSpeed, cae rápidamente
+    /// Física estilo Star Fox:
+    /// - El personaje SIEMPRE avanza hacia adelante (velocidad base automática)
+    /// - RT = acelerar por encima de la velocidad base
+    /// - LT = frenar (velocidad mínima, no se detiene del todo)
+    /// - La velocidad se interpola suavemente entre los 3 niveles
+    /// - Gravedad suave para que el vuelo se sienta ligero
     /// </summary>
     private void ApplyAirplanePhysics()
     {
-        bool isBoosting = Input.GetKey(KeyCode.LeftShift)
-            || Input.GetKey(KeyCode.JoystickButton2)
-            || Input.GetKey(KeyCode.JoystickButton18);
-        float maxSpeed = isBoosting ? maxFlightSpeed * boostMultiplier : maxFlightSpeed;
-
-        // --- MOTOR: empuje hacia adelante ---
-        if (inputThrottle > 0.05f && currentSpeed < maxSpeed)
+        // Determinar velocidad objetivo según input
+        if (inputThrottle > 0.1f)
         {
-            rb.AddForce(transform.forward * inputThrottle * engineForce, ForceMode.Acceleration);
+            // RT presionado: acelerar
+            targetSpeed = Mathf.Lerp(cruiseSpeed, boostSpeed, inputThrottle);
+        }
+        else if (inputBrake > 0.1f)
+        {
+            // LT presionado: frenar
+            targetSpeed = Mathf.Lerp(cruiseSpeed, brakeSpeed, inputBrake);
+        }
+        else
+        {
+            // Sin input: velocidad de crucero
+            targetSpeed = cruiseSpeed;
         }
 
-        // --- FRENO AERODINÁMICO ---
-        if (inputBrake > 0.05f)
-        {
-            rb.AddForce(-rb.linearVelocity.normalized * inputBrake * engineForce * 0.8f, ForceMode.Acceleration);
-        }
+        // Interpolar velocidad actual hacia la objetivo (transición suave)
+        float currentForwardSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
+        float newSpeed = Mathf.Lerp(currentForwardSpeed, targetSpeed, speedTransition * Time.fixedDeltaTime);
 
-        // --- DRAG: resistencia proporcional a velocidad ---
-        if (currentSpeed > 0.5f)
-        {
-            float drag = dragCoefficient * currentSpeed * 0.1f;
-            rb.AddForce(-rb.linearVelocity.normalized * drag, ForceMode.Acceleration);
-        }
+        // Aplicar velocidad: siempre hacia adelante (la nave va donde apunta)
+        // Eliminar componente lateral (no derrapa)
+        Vector3 desiredVelocity = transform.forward * newSpeed;
 
-        // --- SUSTENTACIÓN: fuerza hacia arriba proporcional a velocidad ---
-        float speedRatio = Mathf.Clamp01(currentSpeed / cruiseSpeed);
-        float lift = liftForce * speedRatio * speedRatio; // Sustentación cuadrática
-        rb.AddForce(transform.up * lift, ForceMode.Acceleration);
+        // Mantener algo de velocidad vertical de la física (para que pitch suba/baje)
+        float verticalFromPitch = rb.linearVelocity.y * 0.3f; // Conservar algo de inercia vertical
+        desiredVelocity.y = desiredVelocity.y + verticalFromPitch;
 
-        // --- GRAVEDAD ---
-        bool isStalling = currentSpeed < stallSpeed;
-        float grav = isStalling ? stallGravity : flightGravity;
-        rb.AddForce(Vector3.down * grav, ForceMode.Acceleration);
+        rb.linearVelocity = desiredVelocity;
 
-        // --- ALINEAR VELOCIDAD con dirección de la nave (el avión va donde apunta) ---
-        if (currentSpeed > 2f)
-        {
-            Vector3 forwardVel = Vector3.Project(rb.linearVelocity, transform.forward);
-            Vector3 sideVel = rb.linearVelocity - forwardVel;
-            // Reducir velocidad lateral gradualmente (el avión no derrapa mucho)
-            rb.linearVelocity = forwardVel + sideVel * 0.95f;
-        }
+        // Gravedad suave — el personaje cae levemente si no hace pitch up
+        rb.AddForce(Vector3.down * flightGravity, ForceMode.Acceleration);
     }
 
     /// <summary>
-    /// Rotación en modo avión:
-    /// - Left Stick X / A,D = Roll (inclinar alas)
-    /// - Left Stick Y / Flechas = Pitch (nariz arriba/abajo)
-    /// - El yaw es automático: se genera por la inclinación del roll (giro coordinado)
+    /// Rotación estilo Star Fox (NO invertido):
+    /// - Left Stick X / A,D = Roll (inclinar alas) → giro automático
+    /// - Left Stick Y / Flechas = Pitch (arriba = subir, abajo = bajar)
+    /// - Yaw automático proporcional al ángulo de roll
+    /// - Sin roll input, las alas se nivelan solas
     /// </summary>
     private void ApplyAirplaneRotation()
     {
-        // Pitch: nariz arriba/abajo
-        float pitch = inputPitch * pitchSpeed * Time.fixedDeltaTime;
+        // PITCH: arriba = nariz arriba (NO invertido, estilo Star Fox)
+        float pitch = -inputPitch * pitchSpeed * Time.fixedDeltaTime;
 
-        // Roll: inclinar alas
+        // ROLL: inclinar alas
         float roll = inputRoll * rollSpeed * Time.fixedDeltaTime;
 
-        // Yaw automático por roll: cuando el avión está inclinado, gira naturalmente
-        float currentRollAngle = transform.eulerAngles.z;
-        if (currentRollAngle > 180f) currentRollAngle -= 360f;
-        float autoYaw = -currentRollAngle / 180f * yawFromRoll * Time.fixedDeltaTime;
+        // Auto-nivelación del roll cuando no hay input
+        if (Mathf.Abs(inputRoll) < 0.1f)
+        {
+            float currentRoll = transform.eulerAngles.z;
+            if (currentRoll > 180f) currentRoll -= 360f;
+            // Fuerza de corrección proporcional al ángulo actual
+            roll = -currentRoll * 2f * Time.fixedDeltaTime;
+        }
+
+        // YAW automático por roll (giro coordinado estilo Star Fox)
+        float rollAngle = transform.eulerAngles.z;
+        if (rollAngle > 180f) rollAngle -= 360f;
+        float autoYaw = -rollAngle / 90f * yawFromRoll * Time.fixedDeltaTime;
 
         transform.Rotate(pitch, autoYaw, -roll, Space.Self);
     }
