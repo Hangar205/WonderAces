@@ -23,7 +23,8 @@ public class PlayerController : MonoBehaviour
     public float walkSpeed = 8f;
     public float runSpeed = 14f;
     public float gravity = 20f;
-    public float jumpForce = 12f;
+    [Tooltip("Fuerza del salto (5x la altura del personaje ~7.5 unidades)")]
+    public float jumpForce = 18f;
     public float groundYawSpeed = 120f;
 
     // ==================== MODO AVIÓN (Star Fox Style) ====================
@@ -231,7 +232,7 @@ public class PlayerController : MonoBehaviour
             targetSpeed = cruiseSpeed;
             rb.AddForce(Vector3.up * jumpForce, ForceMode.VelocityChange);
             // Impulso frontal automático — en Star Fox siempre avanzas
-            rb.linearVelocity = transform.forward * cruiseSpeed + Vector3.up * jumpForce * 0.5f;
+            rb.linearVelocity = transform.forward * cruiseSpeed + Vector3.up * jumpForce * 0.6f;
         }
         else if (currentMode == FlightMode.Airplane && isGrounded
                  && currentSpeed < landingSpeed && inputBrake > 0.3f)
