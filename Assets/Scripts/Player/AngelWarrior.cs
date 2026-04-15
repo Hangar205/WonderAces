@@ -27,6 +27,7 @@ public class AngelWarrior : MonoBehaviour
     private Transform swordPivot;
     private bool isSwordSwinging = false;
     private float swingTimer = 0f;
+    private bool isAirplaneMode = false; // Alas extendidas vs aleteo
 
     // Shader cacheado
     private static Shader cachedShader;
@@ -252,17 +253,36 @@ public class AngelWarrior : MonoBehaviour
     }
 
     /// <summary>
-    /// Anima el aleteo de las alas con movimiento sinusoidal.
+    /// Anima las alas según el modo:
+    /// Modo avión: alas extendidas horizontalmente (sin aleteo)
+    /// Modo normal/Joust: aleteo sinusoidal
     /// </summary>
     private void AnimateWings()
     {
         if (wingLeftPivot == null || wingRightPivot == null) return;
 
-        float angle = Mathf.Sin(Time.time * flapSpeed) * flapAngle;
+        if (isAirplaneMode)
+        {
+            // Alas extendidas — transición suave a posición horizontal
+            Quaternion extended = Quaternion.Euler(0f, 0f, 0f);
+            wingLeftPivot.localRotation = Quaternion.Slerp(wingLeftPivot.localRotation, extended, 5f * Time.deltaTime);
+            wingRightPivot.localRotation = Quaternion.Slerp(wingRightPivot.localRotation, extended, 5f * Time.deltaTime);
+        }
+        else
+        {
+            // Aleteo sinusoidal
+            float angle = Mathf.Sin(Time.time * flapSpeed) * flapAngle;
+            wingLeftPivot.localRotation = Quaternion.Euler(0f, 0f, angle);
+            wingRightPivot.localRotation = Quaternion.Euler(0f, 0f, -angle);
+        }
+    }
 
-        // Alas se mueven en direcciones opuestas en el eje Z
-        wingLeftPivot.localRotation = Quaternion.Euler(0f, 0f, angle);
-        wingRightPivot.localRotation = Quaternion.Euler(0f, 0f, -angle);
+    /// <summary>
+    /// Cambia el modo de las alas. Llamado por PlayerController.
+    /// </summary>
+    public void SetFlightMode(bool airplane)
+    {
+        isAirplaneMode = airplane;
     }
 
     /// <summary>
