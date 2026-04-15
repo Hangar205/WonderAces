@@ -36,17 +36,15 @@ public class SceneBootstrap : MonoBehaviour
     {
         CreateSkybox();
         CreateLighting();
-        CreateSkyDome();
         Terrain terrain = CreateMedievalWorld();
         GameObject player = CreatePlayer();
         CreateCamera(player);
         CreatePortals();
-        CreateFloatingRuins();
         CreateAudio();
         CreateGameManager();
         CreateHUD();
 
-        Debug.Log("WonderAces: Nivel de fantasía medieval generado.");
+        Debug.Log("WonderAces: Nivel medieval generado.");
     }
 
     /// <summary>
@@ -170,8 +168,14 @@ public class SceneBootstrap : MonoBehaviour
     private GameObject CreatePlayer()
     {
         GameObject player = new GameObject("AngelWarrior");
-        // Posicionar sobre el terreno, en el centro, mirando hacia adelante
-        player.transform.position = new Vector3(250f, 60f, 250f);
+        // Posicionar justo sobre el terreno, volando bajo
+        float spawnY = 40f; // Altura inicial — el terreno ajustará después
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain != null)
+        {
+            spawnY = terrain.SampleHeight(new Vector3(250f, 0f, 250f)) + terrain.transform.position.y + 3f;
+        }
+        player.transform.position = new Vector3(250f, spawnY, 250f);
         player.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
 
         Rigidbody rb = player.AddComponent<Rigidbody>();
@@ -185,7 +189,7 @@ public class SceneBootstrap : MonoBehaviour
         col.height = 1.5f;
 
         PlayerController pc = player.AddComponent<PlayerController>();
-        pc.arenaRadius = arenaRadius;
+        pc.terrainSize = 500f;
         player.AddComponent<AngelWarrior>();
         player.AddComponent<MagicShooter>();
 
