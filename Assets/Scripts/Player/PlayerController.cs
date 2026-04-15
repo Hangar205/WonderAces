@@ -65,7 +65,7 @@ public class PlayerController : MonoBehaviour
     public float terrainSize = 500f;
     public float terrainMargin = 10f;
     public float maxAltitude = 120f;
-    public float minFlightAltitude = 3f;
+    public float minFlightAltitude = 5f;
 
     [Header("Espada")]
     public float swordRange = 3f;
@@ -264,10 +264,12 @@ public class PlayerController : MonoBehaviour
     private void CheckGround()
     {
         RaycastHit hit;
-        if (Physics.Raycast(transform.position, Vector3.down, out hit, groundCheckDist))
+        // Raycast desde los pies del personaje (offset hacia abajo)
+        Vector3 feetPos = transform.position + Vector3.down * 0.5f;
+        if (Physics.Raycast(feetPos, Vector3.down, out hit, groundCheckDist))
         {
             groundNormal = hit.normal;
-            isGrounded = hit.distance < 0.5f;
+            isGrounded = hit.distance < 0.8f;
         }
         else
         {
@@ -333,47 +335,46 @@ public class PlayerController : MonoBehaviour
 
     /// <summary>
     /// Física estilo Star Fox:
-    /// - El personaje SIEMPRE avanza hacia adelante (velocidad base automática)
-    /// - RT = acelerar por encima de la velocidad base
-    /// - LT = frenar (velocidad mínima, no se detiene del todo)
-    /// - La velocidad se interpola suavemente entre los 3 niveles
-    /// - Gravedad suave para que el vuelo se sienta ligero
+    /// - SIEMPRE avanza hacia adelante a velocidad base
+    /// - RT = acelerar, LT = frenar
+    /// - El pitch genera fuerza vertical directa (subir/bajar)
+    /// - Gravedad suave compensada por sustentación base
     /// </summary>
     private void ApplyAirplanePhysics()
     {
         // Determinar velocidad objetivo según input
         if (inputThrottle > 0.1f)
-        {
-            // RT presionado: acelerar
             targetSpeed = Mathf.Lerp(cruiseSpeed, boostSpeed, inputThrottle);
-        }
         else if (inputBrake > 0.1f)
-        {
-            // LT presionado: frenar
             targetSpeed = Mathf.Lerp(cruiseSpeed, brakeSpeed, inputBrake);
-        }
         else
-        {
-            // Sin input: velocidad de crucero
             targetSpeed = cruiseSpeed;
-        }
 
-        // Interpolar velocidad actual hacia la objetivo (transición suave)
+        // Interpolar velocidad horizontal suavemente
         float currentForwardSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
         float newSpeed = Mathf.Lerp(currentForwardSpeed, targetSpeed, speedTransition * Time.fixedDeltaTime);
 
-        // Aplicar velocidad: siempre hacia adelante (la nave va donde apunta)
-        // Eliminar componente lateral (no derrapa)
-        Vector3 desiredVelocity = transform.forward * newSpeed;
+        // Velocidad horizontal: siempre hacia donde apunta la nariz (solo XZ)
+        Vector3 flatForward = transform.forward;
+        flatForward.y = 0f;
+        flatForward.Normalize();
+        if (flatForward.sqrMagnitude < 0.01f) flatForward = Vector3.forward;
 
-        // Mantener algo de velocidad vertical de la física (para que pitch suba/baje)
-        float verticalFromPitch = rb.linearVelocity.y * 0.3f; // Conservar algo de inercia vertical
-        desiredVelocity.y = desiredVelocity.y + verticalFromPitch;
+        Vector3 desiredVelocity = flatForward * newSpeed;
+
+        // Velocidad vertical: generada por el pitch del personaje
+        // Cuanto más inclinado hacia arriba, más sube. Hacia abajo, más baja.
+        float pitchAngle = transform.eulerAngles.x;
+        if (pitchAngle > 180f) pitchAngle -= 360f;
+        // pitchAngle negativo = nariz arriba = subir
+        float verticalForce = -pitchAngle / 45f * newSpeed * 0.6f;
+
+        // Gravedad suave — compensada parcialmente por sustentación base
+        float currentVertical = rb.linearVelocity.y;
+        float targetVertical = verticalForce - flightGravity * 0.15f;
+        desiredVelocity.y = Mathf.Lerp(currentVertical, targetVertical, 4f * Time.fixedDeltaTime);
 
         rb.linearVelocity = desiredVelocity;
-
-        // Gravedad suave — el personaje cae levemente si no hace pitch up
-        rb.AddForce(Vector3.down * flightGravity, ForceMode.Acceleration);
     }
 
     /// <summary>
