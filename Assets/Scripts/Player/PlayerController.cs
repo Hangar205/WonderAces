@@ -239,7 +239,7 @@ public class PlayerController : MonoBehaviour
         // Limitar pitch para no hacer loops
         float currentPitch = transform.eulerAngles.x;
         if (currentPitch > 180f) currentPitch -= 360f;
-        if ((currentPitch < -40f && pitch < 0f) || (currentPitch > 40f && pitch > 0f))
+        if ((currentPitch < -30f && pitch < 0f) || (currentPitch > 30f && pitch > 0f))
             pitch = 0f; // No seguir inclinando si ya está muy inclinado
 
         transform.Rotate(pitch, autoYaw, -roll, Space.Self);
