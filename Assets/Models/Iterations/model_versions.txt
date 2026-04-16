@@ -1,0 +1,25 @@
+=== WonderAces Character Iterations ===
+
+v1 - AngelWarrior (Pit style, white wings)
+  File: AngelWarrior_v1.fbx
+
+v2 - FairyWarrior (Blue's Journey style, insect wings, green/gold)
+  UUID: c29d4b58-ffe4-4912-bca5-6b4cc4cddf3f
+  NOT exported - can reimport from Hyper3D
+
+v3 - FairyWarrior (beetle wings attempt, has unwanted sword+tail)
+  UUID: d286c11d-e38e-461d-845d-f68fae5b1108
+  NOT exported - can reimport from Hyper3D
+
+v4 - BeetleKnight (insect knight, open wings)
+  File: BeetleKnight_v4.fbx + .blend
+  UUID: 7d23e743-e759-4564-88ff-42acf32fc199
+
+=== Pending changes for next iteration ===
+- Beetle elytra wings CLOSED and flat against back
+- 90 degree angle between wings
+- Pants (not skirt/tunic)
+- No sword visible
+- No tail or medallion appendage
+- Golden arm bracers for shooting
+- Cartoon chibi style
